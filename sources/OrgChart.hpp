@@ -3,12 +3,13 @@
 #include <vector>
 #include <string>
 #include <queue>
+#include <stack>
 
 using namespace std;
 
-#define LEVEL_ORDER 1
-#define REVERSE_LEVEL_ORDER 2
-#define PREORDER 3
+const int LEVEL_ORDER = 1;
+const int REVERSE_LEVEL_ORDER = 2;
+const int PREORDER = 3;
 
 namespace ariel
 {
@@ -21,15 +22,106 @@ namespace ariel
             struct Node{
                 T _data;
                 vector<Node*> _sons;
-                Node(T &data) : _data(data) 
+
+                Node(T &data) : _data(data)
                 {
                     
                 } 
+
+                Node(const Node &n)
+                {
+                    this->_data = n._data;
+                    for (Node *node : n._sons)
+                    {
+                        Node current = Node(*node);
+                        this->_sons.push_back(&current);
+                    }
+                }
+
+                Node(const Node &&n) noexcept
+                {
+                    this->_data = n._data;
+                    this->_sons = n._sons;
+                }
+
+                Node& operator=(Node &&n) noexcept
+                {
+                    return *this;
+                }
+
+                Node& operator=(const Node &n) noexcept
+                {
+                    *this = Node(n);
+                    return *this;
+                }
+                
+                ~Node()
+                {
+                    for (Node *node : this->_sons)
+                    {
+                        node->~Node();
+                    }
+                }
             };
 
             Node *root;
 
         public: 
+
+            OrgChart()
+            {
+                this->root = NULL;
+            }
+
+            OrgChart(OrgChart<T> &org)
+            {
+                if (org.root != NULL)
+                {
+                    this->root = new Node(org.root->_data);
+                    this->root->_sons = org.root->_sons;
+                }
+                else // org.root == NULL 
+                {
+                    this->root = NULL;
+                }
+            }
+
+            OrgChart(OrgChart<T> && org) noexcept
+            {
+                this->root = org.root;
+            }
+
+            ~OrgChart()
+            {
+                if (this->root == NULL)
+                {
+                    return;
+                }
+                this->root->~Node();
+            }
+
+            OrgChart& operator=(OrgChart<T> iter)
+            {
+                if(this != &iter)
+                {
+                    Node *r = this->root;
+                    root = new Node(iter.root->_data);
+                    delete r;
+                }
+                return *this;
+            }
+            
+            OrgChart& operator=(OrgChart<T> &&iter) noexcept
+            {
+                if(this != &iter)
+                {
+                    Node *r = this->root;
+                    root = new Node(iter.root->_data);
+                    delete r;
+                }
+                return *this;
+            }
+
             class iterator
             {
                 private:
@@ -39,7 +131,7 @@ namespace ariel
                 public:
                     iterator(Node *root, int scan)
                     {
-                        this->number = 0;
+                        number = 0;
                         if (scan == LEVEL_ORDER)
                         {
                             level_order(root);
@@ -48,7 +140,7 @@ namespace ariel
                         {
                             reverse_level_order(root);
                         }
-                        else 
+                        else // scan == PREORDER
                         {
                             preorder(root);
                         }
@@ -56,14 +148,14 @@ namespace ariel
 
                     bool operator==(const iterator& iter) 
                     {
-                        bool answer;
+                        bool answer = false;
                         if ((this->_vec.size() == 0) || (iter._vec.size() == 0))
                         {
                            answer = (this->_vec.size() == 0) && (iter._vec.size() == 0);
                         }
                         else 
                         {
-                            answer = (this->_vec[number]) == (iter._vec[number]);
+                            answer = (this->_vec[(size_t)number]) == (iter._vec[(size_t)number]);
                         }
                         return answer;
                     }
@@ -71,44 +163,119 @@ namespace ariel
                     bool operator!=(const iterator& iter)
                     {
                         bool answer = !(*this == iter);
-                        return false;
+                        return answer;
                     }
 
                     iterator& operator++()
                     {
-                        if (number >= this->_vec.size())
+                        this->number = this->number + 1;
+                        if (this->number >= this->_vec.size())
                         {
                             this->_vec.clear();
                         }
-                        this->number = this->number + 1;
                         return *this;
                     }
 
-                    string& operator*()
+                    T& operator*()
                     {
-                        string answer = this->_vec[this->number]->_data;
+                        T &answer = this->_vec[(size_t)this->number]->_data;
                         return answer;
                     }
 
-                    string* operator->()
+                    T* operator->()
                     {
-                        string *answer = &(this->_vec[this->number]->_data);
+                        T *answer = &(this->_vec[(size_t)this->number]->_data);
                         return answer;
                     }
 
+                    /**
+                    * @brief 
+                    * https://en.wikipedia.org/wiki/Breadth-first_search
+                    * @param root 
+                    */
                     void level_order(Node *root)
                     {
-
+                        queue<Node*> q;
+                        if (root != NULL)
+                        {
+                            q.push(root);
+                        }
+                        Node *current = NULL;
+                        while (!(q.empty()))
+                        {
+                            for (int i = 0; i < q.size(); i++)
+                            {
+                                current = q.front();
+                                q.pop();
+                                this->_vec.push_back(current);
+                                for (int j = 0; j < current->_sons.size(); j++)
+                                {
+                                    q.push(current->_sons[(size_t)j]);
+                                }
+                            }
+                        }
                     }
 
+                    /**
+                    * @brief 
+                    * https://en.wikipedia.org/wiki/Breadth-first_search
+                    * @param root 
+                    */
                     void reverse_level_order(Node *root)
                     {
-
+                        queue<Node*> q;
+                        if (root != NULL)
+                        {
+                            q.push(root);
+                        }
+                        Node *current = NULL;
+                        while (!(q.empty()))
+                        {
+                            for (int i = 0; i < q.size(); i++)
+                            {
+                                current = q.front();
+                                q.pop();
+                                this->_vec.push_back(current);
+                                for (int j = (current->_sons.size() - 1); j >= 0; j--)
+                                {
+                                    q.push(current->_sons[(size_t)j]);
+                                }
+                            }
+                        }
+                        vector<Node*> v;
+                        for (int i = (this->_vec.size() - 1); i >= 0; i--)
+                        {
+                            v.push_back(this->_vec[(size_t)i]);
+                        }
+                        for (int i = 0; i < v.size(); i++)
+                        {
+                            this->_vec[(size_t)i] = v[(size_t)i];
+                        }
+                        this->_vec = v;
                     }
 
+                    /**
+                     * @brief 
+                     * https://www.geeksforgeeks.org/iterative-preorder-traversal-of-a-n-ary-tree/
+                     * @param root 
+                     */
                     void preorder(Node *root)
                     {
-
+                        stack<Node*> s;
+                        if (root != NULL)
+                        {
+                            s.push(root);
+                        }
+                        while (!(s.empty()))
+                        {
+                            Node *temp = s.top();
+                            s.pop();
+                            this->_vec.push_back(temp);
+                            for (int i = (temp->_sons.size() - 1); i >= 0; i--)
+                            {
+                                s.push(temp->_sons[(size_t)i]);
+                            }
+                        }
                     }
             };
 
@@ -118,10 +285,7 @@ namespace ariel
                 {
                     return iterator(this->root, LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator end()
@@ -130,10 +294,7 @@ namespace ariel
                 {
                     return iterator(NULL, LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator begin_level_order()
@@ -142,10 +303,7 @@ namespace ariel
                 {
                     return iterator(this->root, LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator end_level_order()
@@ -154,10 +312,7 @@ namespace ariel
                 {
                     return iterator(NULL, LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator begin_reverse_order()
@@ -166,10 +321,7 @@ namespace ariel
                 {
                     return iterator(this->root, REVERSE_LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator reverse_order()
@@ -178,10 +330,7 @@ namespace ariel
                 {
                     return iterator(NULL, REVERSE_LEVEL_ORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator begin_preorder()
@@ -190,10 +339,7 @@ namespace ariel
                 {
                     return iterator(this->root, PREORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             iterator end_preorder()
@@ -202,10 +348,7 @@ namespace ariel
                 {
                     return iterator(NULL, PREORDER);
                 }
-                else // this->root == NULL
-                {
-                    throw invalid_argument{"The tree has no root"};
-                }
+                throw invalid_argument{"The tree has no root"};
             }
 
             OrgChart& add_root(T data)
@@ -220,21 +363,87 @@ namespace ariel
                     {
                         throw invalid_argument{"There is no node which string is equal to'data'"};
                     }
-                    else // this->root == NULL
-                    {
-                        this->root = new Node(data);
-                    }
+                    this->root = new Node(data); // this->root == NULL
                 }
                 return *this;
             }
 
+            /**
+             * @brief 
+             * https://codereview.stackexchange.com/questions/39784/search-an-element-item-in-an-n-ary-tree
+             * @param root 
+             * @param data 
+             * @return Node* 
+             */
+            Node* search(Node* root, T data)
+            {
+                queue<Node*> q;
+                Node *found = NULL;
+                Node *current = NULL;
+                if (root != NULL)
+                {
+                    q.push(root);
+                }
+                bool isBreak = false;
+                while (!(q.empty()))
+                {
+                    if (isBreak)
+                    {
+                        break;
+                    }
+                    for (int i = 0; i < q.size(); i++)
+                    {
+                        current = q.front();
+                        q.pop();
+                        for(int j = 0; j < current->_sons.size(); j++)
+                        {
+                            q.push(current->_sons[(size_t)j]);
+                        }
+                        if (current->_data == data)
+                        {
+                            found = current;
+                            isBreak = true;
+                            break;
+                        }
+                    }
+                }
+                return found;
+            }
+
             OrgChart& add_sub(T data1, T data2)
             {
-                return *this;
+                Node *some = search(this->root, data1);
+                if ((some != NULL) && (this->root != NULL) && (data1.length() != 0) && (data2.length() != 0))
+                {
+                    some->_sons.push_back(new Node(data2));
+                    return *this;
+                }
+                if (data1.length() == 0)
+                {
+                    throw invalid_argument{"There in no node in the organization which string is equal to 'data1'"};
+                }
+                if (data2.length() == 0)
+                {
+                    throw invalid_argument{"There in no node in the organization which string is equal to 'data2'"};
+                }
+                if (some == NULL)
+                {
+                    throw invalid_argument{"There in no node in the organization which string is equal to 'data1'"};
+                }
+                throw invalid_argument{"The tree has no root"}; // this->root == NULL 
             }
 
             friend ostream& operator<<(ostream& output, const OrgChart &organization)
             {
+                Node *node = organization.root;
+                if (node != NULL)
+                {
+                    output << node->_data << endl;
+                    for (Node *current : node->_sons)
+                    {
+                        output << current << endl;
+                    }
+                }
                 return output;
             }
     };
