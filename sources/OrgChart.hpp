@@ -418,6 +418,10 @@ namespace ariel
                     some->_sons.push_back(new Node(data2));
                     return *this;
                 }
+                if (data2.compare(" ") == 0 || data2.compare("\n") == 0 || data2.compare("\t") == 0 || data2.compare("\r") == 0)
+                {
+                    throw invalid_argument{"Sub can't be a space"};
+                }
                 if (data1.length() == 0)
                 {
                     throw invalid_argument{"There in no node in the organization which string is equal to 'data1'"};
@@ -433,18 +437,34 @@ namespace ariel
                 throw invalid_argument{"The tree has no root"}; // this->root == NULL 
             }
 
-            friend ostream& operator<<(ostream& output, const OrgChart &organization)
-            {
-                Node *node = organization.root;
-                if (node != NULL)
+            friend std::ostream& operator<<(std::ostream& output, OrgChart& org){
+
+                queue<Node*>q;
+            
+                q.push(nullptr);
+                q.pop();
+                Node* root=org.root;
+                if(root!=nullptr)
                 {
-                    output << node->_data << endl;
-                    for (Node *current : node->_sons)
+                    q.push(root);
+                }
+                while(!q.empty())
+                {
+                    size_t len=q.size();
+                    for(unsigned i=0;i<len;i++)
                     {
-                        output << current << endl;
+                        Node* n=q.front();
+                        output<<n->_data<<' '; 
+                        q.pop();
+                        for(size_t j=0;j<n->_sons.size();j++)
+                        {
+                            q.push(n->_sons.at(j));
+                        }
                     }
+                    output<<'\n';
                 }
                 return output;
             }
-    };
+
+        };
 }
